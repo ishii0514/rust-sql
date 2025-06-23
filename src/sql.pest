@@ -1,0 +1,21 @@
+WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
+COMMENT = _{ "--" ~ (!("\n") ~ ANY)* }
+
+// SQL statements
+statement = { SOI ~ select_statement ~ EOI }
+
+select_statement = {
+    select_clause ~
+    from_clause ~
+    semicolon
+}
+
+// Clauses
+select_clause = { ^"SELECT" ~ "*" }
+from_clause = { ^"FROM" ~ identifier }
+
+// Basic components
+identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+
+// Utility
+semicolon = { WHITESPACE* ~ ";" ~ WHITESPACE* }
