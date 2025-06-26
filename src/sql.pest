@@ -1,21 +1,58 @@
-WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
-COMMENT = _{ "--" ~ (!("\n") ~ ANY)* }
+WHITESPACE = _{ " " | "	" | "" | "
+" }
+COMMENT = _{ "--" ~ (!("
+") ~ ANY)* }
 
 // SQL statements
-statement = { SOI ~ select_statement ~ EOI }
+statement = { SOI ~ (select_statement | insert_statement | update_statement | delete_statement) ~ EOI }
 
+// SELECT statement
 select_statement = {
     select_clause ~
     from_clause ~
     semicolon
 }
+select_clause = { SELECT ~ "*" }
+from_clause = { FROM ~ identifier }
 
-// Clauses
-select_clause = { ^"SELECT" ~ "*" }
-from_clause = { ^"FROM" ~ identifier }
+// INSERT statement
+insert_statement = {
+    INSERT ~ INTO ~ identifier ~
+    values_clause ~
+    semicolon
+}
+values_clause = { VALUES ~ "(" ~ value_list ~ ")" }
+value_list = { string_literal ~ ("," ~ string_literal)* }
+
+// UPDATE statement
+update_statement = {
+    UPDATE ~ identifier ~
+    set_clause ~
+    semicolon
+}
+set_clause = { SET ~ assignment_list }
+assignment_list = { assignment ~ ("," ~ assignment)* }
+assignment = { identifier ~ "=" ~ string_literal }
+
+// DELETE statement
+delete_statement = {
+    DELETE ~ FROM ~ identifier ~
+    semicolon
+}
 
 // Basic components
 identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+string_literal = @{ "'" ~ ( !("'") ~ ANY )* ~ "'" }
 
 // Utility
 semicolon = { WHITESPACE* ~ ";" ~ WHITESPACE* }
+
+// Keywords (case-insensitive)
+SELECT = @{ ^"SELECT" }
+FROM = @{ ^"FROM" }
+INSERT = @{ ^"INSERT" }
+INTO = @{ ^"INTO" }
+VALUES = @{ ^"VALUES" }
+UPDATE = @{ ^"UPDATE" }
+SET = @{ ^"SET" }
+DELETE = @{ ^"DELETE" }

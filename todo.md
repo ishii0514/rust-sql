@@ -12,13 +12,13 @@
     - [x] SQLキーワードのトークン化 (大文字・小文字を区別しない)
     - [x] 識別子のトークン化
     - [x] 演算子、リテラルのトークン化
-  - [ ] 抽象構文木（AST）のデータ構造の定義
-    - [ ] Statement（SELECT, INSERT, UPDATE, DELETEなど）
+  - [x] 抽象構文木（AST）のデータ構造の定義
+    - [x] Statement（SELECT, INSERT, UPDATE, DELETEなど）
     - [ ] Expression（二項演算、リテラル、カラム参照など）
   - [x] 構文解析器（Parser）の実装
     - [x] SELECT文の解析 (`SELECT * FROM ...`)
-    - [ ] INSERT文の解析
-    - [ ] UPDATE文の解析
-    - [ ] DELETE文の解析
+    - [x] INSERT文の解析
+    - [x] UPDATE文の解析
+    - [x] DELETE文の解析
   - [x] エラーハンドリングの実装 (基本的なエラー処理)
   - [x] パーサーのテスト作成 (単体テスト)

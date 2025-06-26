@@ -17,11 +17,9 @@ fn main() {
         }
 
         match parser::parse_sql(input) {
-            Ok(pairs) => {
+            Ok(statement) => {
                 println!("Parsed successfully:");
-                for pair in pairs {
-                    println!("{:#?}", pair);
-                }
+                println!("{:#?}", statement);
             }
             Err(e) => {
                 eprintln!("Parse failed: {}", e);
