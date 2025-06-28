@@ -1,5 +1,5 @@
-use crate::ast::{Statement, Expression, Literal, BinaryOperator, UnaryOperator};
-use pest::{Parser, iterators::Pair};
+use crate::ast::{BinaryOperator, Expression, Literal, Statement, UnaryOperator};
+use pest::{iterators::Pair, Parser};
 
 #[derive(pest_derive::Parser)]
 #[grammar = "sql.pest"]
@@ -85,7 +85,7 @@ pub fn parse_sql(sql: &str) -> Result<Statement, Box<pest::error::Error<Rule>>> 
                     (column.to_string(), value)
                 })
                 .collect();
-            
+
             // Check for optional WHERE clause
             let where_clause = if let Some(where_pair) = inner_rules.next() {
                 if where_pair.as_rule() == Rule::where_clause {
@@ -99,7 +99,7 @@ pub fn parse_sql(sql: &str) -> Result<Statement, Box<pest::error::Error<Rule>>> 
             } else {
                 None
             };
-            
+
             Statement::Update {
                 table: table_name.to_string(),
                 set: assignments,
@@ -111,7 +111,7 @@ pub fn parse_sql(sql: &str) -> Result<Statement, Box<pest::error::Error<Rule>>> 
             inner_rules.next(); // DELETE
             inner_rules.next(); // FROM
             let table_name = inner_rules.next().unwrap().as_str(); // identifier
-            
+
             // Check for optional WHERE clause
             let where_clause = if let Some(where_pair) = inner_rules.next() {
                 if where_pair.as_rule() == Rule::where_clause {
@@ -125,7 +125,7 @@ pub fn parse_sql(sql: &str) -> Result<Statement, Box<pest::error::Error<Rule>>> 
             } else {
                 None
             };
-            
+
             Statement::Delete {
                 table: table_name.to_string(),
                 where_clause,
@@ -144,7 +144,7 @@ fn build_expression_from_sql_parser(pair: Pair<Rule>) -> Expression {
         Rule::or_expression => {
             let mut inner = pair.into_inner();
             let mut expr = build_expression_from_sql_parser(inner.next().unwrap());
-            
+
             while let Some(keyword) = inner.next() {
                 if keyword.as_rule() == Rule::OR {
                     let right = build_expression_from_sql_parser(inner.next().unwrap());
@@ -160,7 +160,7 @@ fn build_expression_from_sql_parser(pair: Pair<Rule>) -> Expression {
         Rule::and_expression => {
             let mut inner = pair.into_inner();
             let mut expr = build_expression_from_sql_parser(inner.next().unwrap());
-            
+
             while let Some(keyword) = inner.next() {
                 if keyword.as_rule() == Rule::AND {
                     let right = build_expression_from_sql_parser(inner.next().unwrap());
@@ -176,7 +176,7 @@ fn build_expression_from_sql_parser(pair: Pair<Rule>) -> Expression {
         Rule::equality_expression => {
             let mut inner = pair.into_inner();
             let mut expr = build_expression_from_sql_parser(inner.next().unwrap());
-            
+
             while let Some(op_pair) = inner.next() {
                 let operator = match op_pair.as_rule() {
                     Rule::EQUAL => BinaryOperator::Equal,
@@ -195,7 +195,7 @@ fn build_expression_from_sql_parser(pair: Pair<Rule>) -> Expression {
         Rule::comparison_expression => {
             let mut inner = pair.into_inner();
             let mut expr = build_expression_from_sql_parser(inner.next().unwrap());
-            
+
             while let Some(op_pair) = inner.next() {
                 let operator = match op_pair.as_rule() {
                     Rule::LESS_THAN => BinaryOperator::LessThan,
@@ -216,7 +216,7 @@ fn build_expression_from_sql_parser(pair: Pair<Rule>) -> Expression {
         Rule::additive_expression => {
             let mut inner = pair.into_inner();
             let mut expr = build_expression_from_sql_parser(inner.next().unwrap());
-            
+
             while let Some(op_pair) = inner.next() {
                 let operator = match op_pair.as_rule() {
                     Rule::ADD => BinaryOperator::Add,
@@ -235,7 +235,7 @@ fn build_expression_from_sql_parser(pair: Pair<Rule>) -> Expression {
         Rule::multiplicative_expression => {
             let mut inner = pair.into_inner();
             let mut expr = build_expression_from_sql_parser(inner.next().unwrap());
-            
+
             while let Some(op_pair) = inner.next() {
                 let operator = match op_pair.as_rule() {
                     Rule::MULTIPLY => BinaryOperator::Multiply,
@@ -254,7 +254,7 @@ fn build_expression_from_sql_parser(pair: Pair<Rule>) -> Expression {
         Rule::unary_expression => {
             let mut inner = pair.into_inner();
             let first = inner.next().unwrap();
-            
+
             match first.as_rule() {
                 Rule::NOT => {
                     let operand = build_expression_from_sql_parser(inner.next().unwrap());
@@ -297,12 +297,8 @@ fn build_expression_from_sql_parser(pair: Pair<Rule>) -> Expression {
             let is_true = pair.as_str().to_uppercase() == "TRUE";
             Expression::Literal(Literal::Boolean(is_true))
         }
-        Rule::null_literal => {
-            Expression::Literal(Literal::Null)
-        }
-        Rule::identifier => {
-            Expression::Column(pair.as_str().to_string())
-        }
+        Rule::null_literal => Expression::Literal(Literal::Null),
+        Rule::identifier => Expression::Column(pair.as_str().to_string()),
         _ => unreachable!("Unexpected rule: {:?}", pair.as_rule()),
     }
 }
@@ -518,15 +514,25 @@ SELECT * FROM users;";
         assert!(result.is_ok());
         let statement = result.unwrap();
         match statement {
-            Statement::Select { table, where_clause } => {
+            Statement::Select {
+                table,
+                where_clause,
+            } => {
                 assert_eq!(table, "users");
                 assert!(where_clause.is_some());
                 let expr = where_clause.unwrap();
                 match expr {
-                    Expression::Binary { left, operator, right } => {
+                    Expression::Binary {
+                        left,
+                        operator,
+                        right,
+                    } => {
                         assert_eq!(*left, Expression::Column("name".to_string()));
                         assert_eq!(operator, BinaryOperator::Equal);
-                        assert_eq!(*right, Expression::Literal(Literal::String("John".to_string())));
+                        assert_eq!(
+                            *right,
+                            Expression::Literal(Literal::String("John".to_string()))
+                        );
                     }
                     _ => panic!("Expected binary expression"),
                 }
@@ -542,7 +548,11 @@ SELECT * FROM users;";
         assert!(result.is_ok());
         let statement = result.unwrap();
         match statement {
-            Statement::Update { table, set, where_clause } => {
+            Statement::Update {
+                table,
+                set,
+                where_clause,
+            } => {
                 assert_eq!(table, "users");
                 assert_eq!(set, vec![("name".to_string(), "Jane".to_string())]);
                 assert!(where_clause.is_some());
@@ -558,7 +568,10 @@ SELECT * FROM users;";
         assert!(result.is_ok());
         let statement = result.unwrap();
         match statement {
-            Statement::Delete { table, where_clause } => {
+            Statement::Delete {
+                table,
+                where_clause,
+            } => {
                 assert_eq!(table, "users");
                 assert!(where_clause.is_some());
             }

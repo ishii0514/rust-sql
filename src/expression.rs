@@ -1,5 +1,5 @@
-use crate::ast::{Expression, Literal, BinaryOperator, UnaryOperator};
-use pest::{Parser, iterators::Pair};
+use crate::ast::{BinaryOperator, Expression, Literal, UnaryOperator};
+use pest::{iterators::Pair, Parser};
 
 #[derive(pest_derive::Parser)]
 #[grammar = "sql.pest"]
@@ -20,7 +20,7 @@ pub fn build_expression(pair: Pair<Rule>) -> Expression {
         Rule::or_expression => {
             let mut inner = pair.into_inner();
             let mut expr = build_expression(inner.next().unwrap());
-            
+
             while let Some(keyword) = inner.next() {
                 if keyword.as_rule() == Rule::OR {
                     let right = build_expression(inner.next().unwrap());
@@ -36,7 +36,7 @@ pub fn build_expression(pair: Pair<Rule>) -> Expression {
         Rule::and_expression => {
             let mut inner = pair.into_inner();
             let mut expr = build_expression(inner.next().unwrap());
-            
+
             while let Some(keyword) = inner.next() {
                 if keyword.as_rule() == Rule::AND {
                     let right = build_expression(inner.next().unwrap());
@@ -52,7 +52,7 @@ pub fn build_expression(pair: Pair<Rule>) -> Expression {
         Rule::equality_expression => {
             let mut inner = pair.into_inner();
             let mut expr = build_expression(inner.next().unwrap());
-            
+
             while let Some(op_pair) = inner.next() {
                 let operator = match op_pair.as_rule() {
                     Rule::EQUAL => BinaryOperator::Equal,
@@ -71,7 +71,7 @@ pub fn build_expression(pair: Pair<Rule>) -> Expression {
         Rule::comparison_expression => {
             let mut inner = pair.into_inner();
             let mut expr = build_expression(inner.next().unwrap());
-            
+
             while let Some(op_pair) = inner.next() {
                 let operator = match op_pair.as_rule() {
                     Rule::LESS_THAN => BinaryOperator::LessThan,
@@ -92,7 +92,7 @@ pub fn build_expression(pair: Pair<Rule>) -> Expression {
         Rule::additive_expression => {
             let mut inner = pair.into_inner();
             let mut expr = build_expression(inner.next().unwrap());
-            
+
             while let Some(op_pair) = inner.next() {
                 let operator = match op_pair.as_rule() {
                     Rule::ADD => BinaryOperator::Add,
@@ -111,7 +111,7 @@ pub fn build_expression(pair: Pair<Rule>) -> Expression {
         Rule::multiplicative_expression => {
             let mut inner = pair.into_inner();
             let mut expr = build_expression(inner.next().unwrap());
-            
+
             while let Some(op_pair) = inner.next() {
                 let operator = match op_pair.as_rule() {
                     Rule::MULTIPLY => BinaryOperator::Multiply,
@@ -130,7 +130,7 @@ pub fn build_expression(pair: Pair<Rule>) -> Expression {
         Rule::unary_expression => {
             let mut inner = pair.into_inner();
             let first = inner.next().unwrap();
-            
+
             match first.as_rule() {
                 Rule::NOT => {
                     let operand = build_expression(inner.next().unwrap());
@@ -173,21 +173,16 @@ pub fn build_expression(pair: Pair<Rule>) -> Expression {
             let is_true = pair.as_str().to_uppercase() == "TRUE";
             Expression::Literal(Literal::Boolean(is_true))
         }
-        Rule::null_literal => {
-            Expression::Literal(Literal::Null)
-        }
-        Rule::identifier => {
-            Expression::Column(pair.as_str().to_string())
-        }
+        Rule::null_literal => Expression::Literal(Literal::Null),
+        Rule::identifier => Expression::Column(pair.as_str().to_string()),
         _ => unreachable!("Unexpected rule: {:?}", pair.as_rule()),
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::{Expression, Literal, BinaryOperator, UnaryOperator};
+    use crate::ast::{BinaryOperator, Expression, Literal, UnaryOperator};
 
     #[test]
     fn test_parse_string_literal() {
@@ -205,10 +200,7 @@ mod tests {
         let expr = "42";
         let result = parse_expression(expr);
         assert!(result.is_ok());
-        assert_eq!(
-            result.unwrap(),
-            Expression::Literal(Literal::Number(42))
-        );
+        assert_eq!(result.unwrap(), Expression::Literal(Literal::Number(42)));
     }
 
     #[test]
@@ -216,10 +208,7 @@ mod tests {
         let expr = "3.14";
         let result = parse_expression(expr);
         assert!(result.is_ok());
-        assert_eq!(
-            result.unwrap(),
-            Expression::Literal(Literal::Float(3.14))
-        );
+        assert_eq!(result.unwrap(), Expression::Literal(Literal::Float(3.14)));
     }
 
     #[test]
@@ -227,10 +216,7 @@ mod tests {
         let expr = "TRUE";
         let result = parse_expression(expr);
         assert!(result.is_ok());
-        assert_eq!(
-            result.unwrap(),
-            Expression::Literal(Literal::Boolean(true))
-        );
+        assert_eq!(result.unwrap(), Expression::Literal(Literal::Boolean(true)));
     }
 
     #[test]
@@ -249,10 +235,7 @@ mod tests {
         let expr = "NULL";
         let result = parse_expression(expr);
         assert!(result.is_ok());
-        assert_eq!(
-            result.unwrap(),
-            Expression::Literal(Literal::Null)
-        );
+        assert_eq!(result.unwrap(), Expression::Literal(Literal::Null));
     }
 
     #[test]
@@ -260,10 +243,7 @@ mod tests {
         let expr = "name";
         let result = parse_expression(expr);
         assert!(result.is_ok());
-        assert_eq!(
-            result.unwrap(),
-            Expression::Column("name".to_string())
-        );
+        assert_eq!(result.unwrap(), Expression::Column("name".to_string()));
     }
 
     #[test]
