@@ -10,10 +10,12 @@ statement = { SOI ~ (select_statement | insert_statement | update_statement | de
 select_statement = {
     select_clause ~
     from_clause ~
+    where_clause? ~
     semicolon
 }
 select_clause = { SELECT ~ "*" }
 from_clause = { FROM ~ identifier }
+where_clause = { WHERE ~ expression }
 
 // INSERT statement
 insert_statement = {
@@ -28,6 +30,7 @@ value_list = { string_literal ~ ("," ~ string_literal)* }
 update_statement = {
     UPDATE ~ identifier ~
     set_clause ~
+    where_clause? ~
     semicolon
 }
 set_clause = { SET ~ assignment_list }
@@ -37,6 +40,7 @@ assignment = { identifier ~ "=" ~ string_literal }
 // DELETE statement
 delete_statement = {
     DELETE ~ FROM ~ identifier ~
+    where_clause? ~
     semicolon
 }
 
@@ -44,15 +48,57 @@ delete_statement = {
 identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 string_literal = @{ "'" ~ ( !("'") ~ ANY )* ~ "'" }
 
+// Literals
+number_literal = @{ ASCII_DIGIT+ }
+float_literal = @{ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }
+boolean_literal = @{ ^"TRUE" | ^"FALSE" }
+null_literal = @{ ^"NULL" }
+
+// Expressions
+expression = { or_expression }
+or_expression = { and_expression ~ (OR ~ and_expression)* }
+and_expression = { equality_expression ~ (AND ~ equality_expression)* }
+equality_expression = { comparison_expression ~ ((EQUAL | NOT_EQUAL) ~ comparison_expression)* }
+comparison_expression = { additive_expression ~ ((LESS_THAN | LESS_THAN_OR_EQUAL | GREATER_THAN | GREATER_THAN_OR_EQUAL) ~ additive_expression)* }
+additive_expression = { multiplicative_expression ~ ((ADD | SUBTRACT) ~ multiplicative_expression)* }
+multiplicative_expression = { unary_expression ~ ((MULTIPLY | DIVIDE) ~ unary_expression)* }
+unary_expression = { (NOT | MINUS)* ~ primary_expression }
+primary_expression = { 
+    "(" ~ expression ~ ")" |
+    float_literal |
+    number_literal |
+    string_literal |
+    boolean_literal |
+    null_literal |
+    identifier
+}
+
+// Operators
+EQUAL = { "=" }
+NOT_EQUAL = { "!=" | "<>" }
+LESS_THAN_OR_EQUAL = { "<=" }
+LESS_THAN = { "<" }
+GREATER_THAN_OR_EQUAL = { ">=" }
+GREATER_THAN = { ">" }
+ADD = { "+" }
+SUBTRACT = { "-" }
+MULTIPLY = { "*" }
+DIVIDE = { "/" }
+MINUS = { "-" }
+
 // Utility
 semicolon = { WHITESPACE* ~ ";" ~ WHITESPACE* }
 
 // Keywords (case-insensitive)
 SELECT = @{ ^"SELECT" }
 FROM = @{ ^"FROM" }
+WHERE = @{ ^"WHERE" }
 INSERT = @{ ^"INSERT" }
 INTO = @{ ^"INTO" }
 VALUES = @{ ^"VALUES" }
 UPDATE = @{ ^"UPDATE" }
 SET = @{ ^"SET" }
 DELETE = @{ ^"DELETE" }
+AND = @{ ^"AND" }
+OR = @{ ^"OR" }
+NOT = @{ ^"NOT" }
