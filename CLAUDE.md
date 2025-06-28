@@ -79,3 +79,64 @@ The codebase includes comprehensive unit tests covering:
 - Unicode (Japanese) text support
 - Edge cases (empty lists, special characters)
 
+## Development Workflow
+
+### Issue-Based Development Process
+
+1. **Issue Selection**: ユーザーがGitHub issuesの番号を指定（単一または複数）
+2. **Branch Creation**: 実装前に必ず新しいブランチを作成
+3. **TDD Implementation**: テスト駆動開発でfeatureを実装
+4. **Pull Request**: 実装完了後、自動でプルリクエストを作成
+
+### Branch Naming Convention
+- Single issue: `feature/issue-{number}-{short-description}`
+- Multiple issues: `feature/issues-{number1}-{number2}-{short-description}`
+
+### Implementation Steps
+1. **ブランチ作成**:
+   ```bash
+   git checkout -b feature/issue-{number}-{description}
+   ```
+
+2. **Issue内容の分析**: 指定されたissueの要件を詳細に分析
+
+3. **TDD実装**:
+   - まずテストを作成（期待される動作を定義）
+   - テストの失敗を確認
+   - 実装を進めてテストをパス
+   - リファクタリング
+
+4. **コミット**: 段階的にコミットを作成
+
+5. **プルリクエスト作成**:
+   ```bash
+   git push origin feature/issue-{number}-{description}
+   gh pr create --title "feat: {issue-title}" --body "{pr-description}"
+   ```
+
+### Pull Request Template
+```markdown
+## 概要
+{issue の概要}
+
+## 実装内容
+- [ ] {実装した機能1}
+- [ ] {実装した機能2}
+
+## テスト
+- [ ] 新規テストの追加
+- [ ] 既存テストの修正
+- [ ] すべてのテストが通過
+
+## 関連Issue
+Closes #{issue-number}
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+```
+
+### Notes
+- 常にTDDアプローチを維持
+- pre-commitフックによる自動フォーマット・リント適用
+- 段階的なコミットで履歴を明確に保つ
+- プルリクエストでのレビュープロセス重視
+
