@@ -11,11 +11,19 @@ select_statement = {
     select_clause ~
     from_clause ~
     where_clause? ~
+    group_by_clause? ~
+    order_by_clause? ~
+    limit_clause? ~
     semicolon
 }
 select_clause = { SELECT ~ "*" }
 from_clause = { FROM ~ identifier }
 where_clause = { WHERE ~ expression }
+order_by_clause = { ORDER ~ BY ~ identifier ~ order_direction? }
+order_direction = { ASC | DESC }
+group_by_clause = { GROUP ~ BY ~ identifier_list }
+identifier_list = { identifier ~ ("," ~ identifier)* }
+limit_clause = { LIMIT ~ number_literal }
 
 // INSERT statement
 insert_statement = {
@@ -102,3 +110,9 @@ DELETE = @{ ^"DELETE" }
 AND = @{ ^"AND" }
 OR = @{ ^"OR" }
 NOT = @{ ^"NOT" }
+ORDER = @{ ^"ORDER" }
+BY = @{ ^"BY" }
+GROUP = @{ ^"GROUP" }
+ASC = @{ ^"ASC" }
+DESC = @{ ^"DESC" }
+LIMIT = @{ ^"LIMIT" }

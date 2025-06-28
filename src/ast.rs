@@ -3,6 +3,9 @@ pub enum Statement {
     Select {
         table: String,
         where_clause: Option<Expression>,
+        order_by: Option<OrderBy>,
+        group_by: Option<GroupBy>,
+        limit: Option<u64>,
     },
     Insert {
         table: String,
@@ -66,4 +69,21 @@ pub enum BinaryOperator {
 pub enum UnaryOperator {
     Not,
     Minus,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct OrderBy {
+    pub column: String,
+    pub direction: OrderDirection,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum OrderDirection {
+    Asc,
+    Desc,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct GroupBy {
+    pub columns: Vec<String>,
 }

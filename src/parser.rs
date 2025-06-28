@@ -1,4 +1,6 @@
-use crate::ast::{BinaryOperator, Expression, Literal, Statement, UnaryOperator};
+use crate::ast::{
+    BinaryOperator, Expression, GroupBy, Literal, OrderBy, OrderDirection, Statement, UnaryOperator,
+};
 use pest::{iterators::Pair, Parser};
 
 #[derive(pest_derive::Parser)]
@@ -15,7 +17,7 @@ pub fn parse_sql(sql: &str) -> Result<Statement, Box<pest::error::Error<Rule>>> 
     Ok(match inner_statement.as_rule() {
         Rule::select_statement => {
             let mut inner_rules = inner_statement.into_inner();
-            // The first rule is select_clause, then from_clause, then optional where_clause, then semicolon
+            // The first rule is select_clause, then from_clause, then optional clauses, then semicolon
             inner_rules.next(); // Consume the select_clause (SELECT *)
             let from_clause_pair = inner_rules.next().unwrap(); // This is the from_clause (FROM users)
 
@@ -23,23 +25,74 @@ pub fn parse_sql(sql: &str) -> Result<Statement, Box<pest::error::Error<Rule>>> 
             from_inner_rules.next(); // Consume the 'FROM' keyword
             let table_name = from_inner_rules.next().unwrap().as_str(); // This should be the identifier
 
-            // Check for optional WHERE clause
-            let where_clause = if let Some(where_pair) = inner_rules.next() {
-                if where_pair.as_rule() == Rule::where_clause {
-                    let mut where_inner = where_pair.into_inner();
-                    where_inner.next(); // Consume WHERE keyword
-                    let expr_pair = where_inner.next().unwrap();
-                    Some(build_expression_from_sql_parser(expr_pair))
-                } else {
-                    None
+            // Parse optional clauses
+            let mut where_clause = None;
+            let mut group_by = None;
+            let mut order_by = None;
+            let mut limit = None;
+
+            for clause in inner_rules {
+                match clause.as_rule() {
+                    Rule::where_clause => {
+                        let mut where_inner = clause.into_inner();
+                        where_inner.next(); // Consume WHERE keyword
+                        let expr_pair = where_inner.next().unwrap();
+                        where_clause = Some(build_expression_from_sql_parser(expr_pair));
+                    }
+                    Rule::group_by_clause => {
+                        let mut group_by_inner = clause.into_inner();
+                        group_by_inner.next(); // Consume GROUP keyword
+                        group_by_inner.next(); // Consume BY keyword
+                        let identifier_list = group_by_inner.next().unwrap(); // identifier_list
+                        let columns = identifier_list
+                            .into_inner()
+                            .map(|p| p.as_str().to_string())
+                            .collect();
+                        group_by = Some(GroupBy { columns });
+                    }
+                    Rule::order_by_clause => {
+                        let mut order_by_inner = clause.into_inner();
+                        order_by_inner.next(); // Consume ORDER keyword
+                        order_by_inner.next(); // Consume BY keyword
+                        let column = order_by_inner.next().unwrap().as_str().to_string();
+                        let direction = if let Some(dir_pair) = order_by_inner.next() {
+                            match dir_pair.as_rule() {
+                                Rule::order_direction => {
+                                    let dir_inner = dir_pair.into_inner().next().unwrap();
+                                    match dir_inner.as_rule() {
+                                        Rule::ASC => OrderDirection::Asc,
+                                        Rule::DESC => OrderDirection::Desc,
+                                        _ => OrderDirection::Asc, // default
+                                    }
+                                }
+                                _ => OrderDirection::Asc, // default
+                            }
+                        } else {
+                            OrderDirection::Asc // default
+                        };
+                        order_by = Some(OrderBy { column, direction });
+                    }
+                    Rule::limit_clause => {
+                        let mut limit_inner = clause.into_inner();
+                        limit_inner.next(); // Consume LIMIT keyword
+                        let limit_value = limit_inner.next().unwrap().as_str().parse().unwrap();
+                        limit = Some(limit_value);
+                    }
+                    Rule::semicolon => {
+                        // Skip semicolon
+                    }
+                    _ => {
+                        // Skip other rules like semicolon
+                    }
                 }
-            } else {
-                None
-            };
+            }
 
             Statement::Select {
                 table: table_name.to_string(),
                 where_clause,
+                order_by,
+                group_by,
+                limit,
             }
         }
         Rule::insert_statement => {
@@ -317,7 +370,10 @@ mod tests {
             result.unwrap(),
             Statement::Select {
                 table: "users".to_string(),
-                where_clause: None
+                where_clause: None,
+                order_by: None,
+                group_by: None,
+                limit: None,
             }
         );
     }
@@ -435,7 +491,10 @@ SELECT * FROM users;";
             result.unwrap(),
             Statement::Select {
                 table: "user_01".to_string(),
-                where_clause: None
+                where_clause: None,
+                order_by: None,
+                group_by: None,
+                limit: None,
             }
         );
     }
@@ -517,9 +576,15 @@ SELECT * FROM users;";
             Statement::Select {
                 table,
                 where_clause,
+                order_by,
+                group_by,
+                limit,
             } => {
                 assert_eq!(table, "users");
                 assert!(where_clause.is_some());
+                assert!(order_by.is_none());
+                assert!(group_by.is_none());
+                assert!(limit.is_none());
                 let expr = where_clause.unwrap();
                 match expr {
                     Expression::Binary {
@@ -576,6 +641,170 @@ SELECT * FROM users;";
                 assert!(where_clause.is_some());
             }
             _ => panic!("Expected Delete statement"),
+        }
+    }
+
+    #[test]
+    fn test_parse_select_with_order_by_asc() {
+        let sql = "SELECT * FROM users ORDER BY name ASC;";
+        let result = parse_sql(sql);
+        assert!(result.is_ok());
+        let statement = result.unwrap();
+        match statement {
+            Statement::Select {
+                table,
+                where_clause,
+                order_by,
+                group_by,
+                limit,
+            } => {
+                assert_eq!(table, "users");
+                assert!(where_clause.is_none());
+                assert!(group_by.is_none());
+                assert!(limit.is_none());
+                assert!(order_by.is_some());
+                let order = order_by.unwrap();
+                assert_eq!(order.column, "name");
+                assert_eq!(order.direction, OrderDirection::Asc);
+            }
+            _ => panic!("Expected Select statement"),
+        }
+    }
+
+    #[test]
+    fn test_parse_select_with_order_by_desc() {
+        let sql = "SELECT * FROM users ORDER BY name DESC;";
+        let result = parse_sql(sql);
+        assert!(result.is_ok());
+        let statement = result.unwrap();
+        match statement {
+            Statement::Select {
+                table,
+                where_clause,
+                order_by,
+                group_by,
+                limit,
+            } => {
+                assert_eq!(table, "users");
+                assert!(where_clause.is_none());
+                assert!(group_by.is_none());
+                assert!(limit.is_none());
+                assert!(order_by.is_some());
+                let order = order_by.unwrap();
+                assert_eq!(order.column, "name");
+                assert_eq!(order.direction, OrderDirection::Desc);
+            }
+            _ => panic!("Expected Select statement"),
+        }
+    }
+
+    #[test]
+    fn test_parse_select_with_group_by() {
+        let sql = "SELECT * FROM users GROUP BY department;";
+        let result = parse_sql(sql);
+        assert!(result.is_ok());
+        let statement = result.unwrap();
+        match statement {
+            Statement::Select {
+                table,
+                where_clause,
+                order_by,
+                group_by,
+                limit,
+            } => {
+                assert_eq!(table, "users");
+                assert!(where_clause.is_none());
+                assert!(order_by.is_none());
+                assert!(limit.is_none());
+                assert!(group_by.is_some());
+                let group = group_by.unwrap();
+                assert_eq!(group.columns, vec!["department"]);
+            }
+            _ => panic!("Expected Select statement"),
+        }
+    }
+
+    #[test]
+    fn test_parse_select_with_group_by_multiple_columns() {
+        let sql = "SELECT * FROM users GROUP BY department, status;";
+        let result = parse_sql(sql);
+        assert!(result.is_ok());
+        let statement = result.unwrap();
+        match statement {
+            Statement::Select {
+                table,
+                where_clause,
+                order_by,
+                group_by,
+                limit,
+            } => {
+                assert_eq!(table, "users");
+                assert!(where_clause.is_none());
+                assert!(order_by.is_none());
+                assert!(limit.is_none());
+                assert!(group_by.is_some());
+                let group = group_by.unwrap();
+                assert_eq!(group.columns, vec!["department", "status"]);
+            }
+            _ => panic!("Expected Select statement"),
+        }
+    }
+
+    #[test]
+    fn test_parse_select_with_limit() {
+        let sql = "SELECT * FROM users LIMIT 10;";
+        let result = parse_sql(sql);
+        assert!(result.is_ok());
+        let statement = result.unwrap();
+        match statement {
+            Statement::Select {
+                table,
+                where_clause,
+                order_by,
+                group_by,
+                limit,
+            } => {
+                assert_eq!(table, "users");
+                assert!(where_clause.is_none());
+                assert!(order_by.is_none());
+                assert!(group_by.is_none());
+                assert!(limit.is_some());
+                assert_eq!(limit.unwrap(), 10);
+            }
+            _ => panic!("Expected Select statement"),
+        }
+    }
+
+    #[test]
+    fn test_parse_select_with_all_extensions() {
+        let sql = "SELECT * FROM users WHERE active = 'true' GROUP BY department ORDER BY name ASC LIMIT 10;";
+        let result = parse_sql(sql);
+        assert!(result.is_ok());
+        let statement = result.unwrap();
+        match statement {
+            Statement::Select {
+                table,
+                where_clause,
+                order_by,
+                group_by,
+                limit,
+            } => {
+                assert_eq!(table, "users");
+                assert!(where_clause.is_some());
+                assert!(order_by.is_some());
+                assert!(group_by.is_some());
+                assert!(limit.is_some());
+
+                let order = order_by.unwrap();
+                assert_eq!(order.column, "name");
+                assert_eq!(order.direction, OrderDirection::Asc);
+
+                let group = group_by.unwrap();
+                assert_eq!(group.columns, vec!["department"]);
+
+                assert_eq!(limit.unwrap(), 10);
+            }
+            _ => panic!("Expected Select statement"),
         }
     }
 }
