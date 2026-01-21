@@ -807,4 +807,114 @@ SELECT * FROM users;";
             _ => panic!("Expected Select statement"),
         }
     }
+
+    #[test]
+    fn test_parse_select_with_arithmetic_precedence() {
+        let sql = "SELECT * FROM users WHERE 1 + 2 * 3 = 7;";
+        let result = parse_sql(sql);
+        assert!(result.is_ok());
+        let statement = result.unwrap();
+        match statement {
+            Statement::Select { where_clause, .. } => {
+                let expr = where_clause.unwrap();
+                assert_eq!(
+                    expr,
+                    Expression::Binary {
+                        left: Box::new(Expression::Binary {
+                            left: Box::new(Expression::Literal(Literal::Number(1))),
+                            operator: BinaryOperator::Add,
+                            right: Box::new(Expression::Binary {
+                                left: Box::new(Expression::Literal(Literal::Number(2))),
+                                operator: BinaryOperator::Multiply,
+                                right: Box::new(Expression::Literal(Literal::Number(3))),
+                            }),
+                        }),
+                        operator: BinaryOperator::Equal,
+                        right: Box::new(Expression::Literal(Literal::Number(7))),
+                    }
+                );
+            }
+            _ => panic!("Expected Select statement"),
+        }
+    }
+
+    #[test]
+    fn test_parse_select_with_parentheses_in_arithmetic() {
+        let sql = "SELECT * FROM users WHERE (1 + 2) * 3 = 9;";
+        let result = parse_sql(sql);
+        assert!(result.is_ok());
+        let statement = result.unwrap();
+        match statement {
+            Statement::Select { where_clause, .. } => {
+                let expr = where_clause.unwrap();
+                assert_eq!(
+                    expr,
+                    Expression::Binary {
+                        left: Box::new(Expression::Binary {
+                            left: Box::new(Expression::Binary {
+                                left: Box::new(Expression::Literal(Literal::Number(1))),
+                                operator: BinaryOperator::Add,
+                                right: Box::new(Expression::Literal(Literal::Number(2))),
+                            }),
+                            operator: BinaryOperator::Multiply,
+                            right: Box::new(Expression::Literal(Literal::Number(3))),
+                        }),
+                        operator: BinaryOperator::Equal,
+                        right: Box::new(Expression::Literal(Literal::Number(9))),
+                    }
+                );
+            }
+            _ => panic!("Expected Select statement"),
+        }
+    }
+
+    #[test]
+    fn test_parse_select_with_unary_minus_in_arithmetic() {
+        let sql = "SELECT * FROM users WHERE -1 + 2 = 1;";
+        let result = parse_sql(sql);
+        assert!(result.is_ok());
+        let statement = result.unwrap();
+        match statement {
+            Statement::Select { where_clause, .. } => {
+                let expr = where_clause.unwrap();
+                assert_eq!(
+                    expr,
+                    Expression::Binary {
+                        left: Box::new(Expression::Binary {
+                            left: Box::new(Expression::Unary {
+                                operator: UnaryOperator::Minus,
+                                operand: Box::new(Expression::Literal(Literal::Number(1))),
+                            }),
+                            operator: BinaryOperator::Add,
+                            right: Box::new(Expression::Literal(Literal::Number(2))),
+                        }),
+                        operator: BinaryOperator::Equal,
+                        right: Box::new(Expression::Literal(Literal::Number(1))),
+                    }
+                );
+            }
+            _ => panic!("Expected Select statement"),
+        }
+    }
+
+    #[test]
+    fn test_parse_invalid_arithmetic_missing_rhs() {
+        let sql = "SELECT * FROM users WHERE 1 + ;";
+        let result = parse_sql(sql);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_invalid_arithmetic_unclosed_paren() {
+        let sql = "SELECT * FROM users WHERE (1 + 2;";
+        let result = parse_sql(sql);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_invalid_arithmetic_double_operator() {
+        let sql = "SELECT * FROM users WHERE 1 * * 2;";
+        let result = parse_sql(sql);
+        assert!(result.is_err());
+    }
 }
