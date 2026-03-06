@@ -1,5 +1,6 @@
 use crate::ast::{
-    BinaryOperator, Expression, GroupBy, Literal, OrderBy, OrderDirection, Statement, UnaryOperator,
+    BinaryOperator, Expression, GroupBy, Literal, OrderBy, OrderByItem, OrderDirection, Statement,
+    UnaryOperator,
 };
 use pest::{iterators::Pair, Parser};
 
@@ -54,23 +55,28 @@ pub fn parse_sql(sql: &str) -> Result<Statement, Box<pest::error::Error<Rule>>> 
                         let mut order_by_inner = clause.into_inner();
                         order_by_inner.next(); // Consume ORDER keyword
                         order_by_inner.next(); // Consume BY keyword
-                        let column = order_by_inner.next().unwrap().as_str().to_string();
-                        let direction = if let Some(dir_pair) = order_by_inner.next() {
-                            match dir_pair.as_rule() {
-                                Rule::order_direction => {
-                                    let dir_inner = dir_pair.into_inner().next().unwrap();
-                                    match dir_inner.as_rule() {
-                                        Rule::ASC => OrderDirection::Asc,
-                                        Rule::DESC => OrderDirection::Desc,
-                                        _ => OrderDirection::Asc, // default
+                        let items = order_by_inner
+                            .filter(|pair| pair.as_rule() == Rule::order_by_item)
+                            .map(|pair| {
+                                let mut item_inner = pair.into_inner();
+                                let column = item_inner.next().unwrap().as_str().to_string();
+                                let direction = match item_inner.next() {
+                                    Some(dir_pair)
+                                        if dir_pair.as_rule() == Rule::order_direction =>
+                                    {
+                                        match dir_pair.into_inner().next().unwrap().as_rule() {
+                                            Rule::ASC => OrderDirection::Asc,
+                                            Rule::DESC => OrderDirection::Desc,
+                                            _ => OrderDirection::Asc,
+                                        }
                                     }
-                                }
-                                _ => OrderDirection::Asc, // default
-                            }
-                        } else {
-                            OrderDirection::Asc // default
-                        };
-                        order_by = Some(OrderBy { column, direction });
+                                    _ => OrderDirection::Asc,
+                                };
+
+                                OrderByItem { column, direction }
+                            })
+                            .collect();
+                        order_by = Some(OrderBy { items });
                     }
                     Rule::limit_clause => {
                         let mut limit_inner = clause.into_inner();
@@ -664,8 +670,13 @@ SELECT * FROM users;";
                 assert!(limit.is_none());
                 assert!(order_by.is_some());
                 let order = order_by.unwrap();
-                assert_eq!(order.column, "name");
-                assert_eq!(order.direction, OrderDirection::Asc);
+                assert_eq!(
+                    order.items,
+                    vec![OrderByItem {
+                        column: "name".to_string(),
+                        direction: OrderDirection::Asc,
+                    }]
+                );
             }
             _ => panic!("Expected Select statement"),
         }
@@ -691,8 +702,51 @@ SELECT * FROM users;";
                 assert!(limit.is_none());
                 assert!(order_by.is_some());
                 let order = order_by.unwrap();
-                assert_eq!(order.column, "name");
-                assert_eq!(order.direction, OrderDirection::Desc);
+                assert_eq!(
+                    order.items,
+                    vec![OrderByItem {
+                        column: "name".to_string(),
+                        direction: OrderDirection::Desc,
+                    }]
+                );
+            }
+            _ => panic!("Expected Select statement"),
+        }
+    }
+
+    #[test]
+    fn test_parse_select_with_order_by_multiple_columns() {
+        let sql = "SELECT * FROM users ORDER BY name ASC, created_at DESC;";
+        let result = parse_sql(sql);
+        assert!(result.is_ok());
+        let statement = result.unwrap();
+        match statement {
+            Statement::Select {
+                table,
+                where_clause,
+                order_by,
+                group_by,
+                limit,
+            } => {
+                assert_eq!(table, "users");
+                assert!(where_clause.is_none());
+                assert!(group_by.is_none());
+                assert!(limit.is_none());
+                assert!(order_by.is_some());
+                let order = order_by.unwrap();
+                assert_eq!(
+                    order.items,
+                    vec![
+                        OrderByItem {
+                            column: "name".to_string(),
+                            direction: OrderDirection::Asc,
+                        },
+                        OrderByItem {
+                            column: "created_at".to_string(),
+                            direction: OrderDirection::Desc,
+                        },
+                    ]
+                );
             }
             _ => panic!("Expected Select statement"),
         }
@@ -796,8 +850,13 @@ SELECT * FROM users;";
                 assert!(limit.is_some());
 
                 let order = order_by.unwrap();
-                assert_eq!(order.column, "name");
-                assert_eq!(order.direction, OrderDirection::Asc);
+                assert_eq!(
+                    order.items,
+                    vec![OrderByItem {
+                        column: "name".to_string(),
+                        direction: OrderDirection::Asc,
+                    }]
+                );
 
                 let group = group_by.unwrap();
                 assert_eq!(group.columns, vec!["department"]);

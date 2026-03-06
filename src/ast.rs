@@ -73,6 +73,11 @@ pub enum UnaryOperator {
 
 #[derive(Debug, PartialEq)]
 pub struct OrderBy {
+    pub items: Vec<OrderByItem>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct OrderByItem {
     pub column: String,
     pub direction: OrderDirection,
 }

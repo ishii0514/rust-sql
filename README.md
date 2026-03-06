@@ -53,6 +53,7 @@ cargo run
 ### SELECT文
 ```sql
 SELECT * FROM table_name;
+SELECT * FROM table_name ORDER BY column1 ASC, column2 DESC;
 ```
 
 ### INSERT文
