@@ -208,7 +208,11 @@ mod tests {
         let expr = "3.14";
         let result = parse_expression(expr);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), Expression::Literal(Literal::Float(3.14)));
+        let expected = 314_f64 / 100.0;
+        assert_eq!(
+            result.unwrap(),
+            Expression::Literal(Literal::Float(expected))
+        );
     }
 
     #[test]
