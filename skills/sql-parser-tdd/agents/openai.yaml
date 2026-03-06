@@ -1,0 +1,7 @@
+interface:
+  display_name: "SQL Parser TDD"
+  short_description: "Rust SQL parser changes with repo-specific TDD flow"
+  default_prompt: "Use $sql-parser-tdd to extend this repository's SQL parser with the required tests, grammar updates, and verification steps."
+
+policy:
+  allow_implicit_invocation: true
