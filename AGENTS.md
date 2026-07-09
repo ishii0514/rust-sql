@@ -1,38 +1,38 @@
-# Repository Guidelines
+# リポジトリガイドライン
 
 **重要：ユーザーには必ず日本語で返答してください。**
 
-## Project Structure & Module Organization
-- `src/lib.rs` exposes the library API; `src/main.rs` provides a small CLI entry point.
-- Parser logic lives in `src/parser.rs` and `src/sql.pest` (Pest grammar).
-- AST types are in `src/ast.rs`, with expression parsing in `src/expression.rs`.
-- Tests are colocated in `#[cfg(test)]` modules within source files.
-- Build artifacts are generated in `target/`.
+## プロジェクト構成とモジュール配置
+- `src/lib.rs` はライブラリ API を公開し、`src/main.rs` は小さな CLI エントリポイントを提供します。
+- パーサーのロジックは `src/parser.rs` と `src/sql.pest`（Pest 文法）にあります。
+- AST 型は `src/ast.rs` にあり、式のパースは `src/expression.rs` にあります。
+- テストは各ソースファイル内の `#[cfg(test)]` モジュールに配置します。
+- ビルド成果物は `target/` に生成されます。
 
-## Build, Test, and Development Commands
-- `cargo build`: compile the library and binary.
-- `cargo run`: run the parser CLI.
-- `cargo test`: run unit tests.
-- `cargo fmt`: format code with rustfmt.
-- `cargo clippy`: run lint checks.
-- `cargo build --release`: optimized build.
+## ビルド・テスト・開発コマンド
+- `cargo build`: ライブラリとバイナリをコンパイルします。
+- `cargo run`: パーサー CLI を実行します。
+- `cargo test`: ユニットテストを実行します。
+- `cargo fmt`: rustfmt でコードを整形します。
+- `cargo clippy`: lint チェックを実行します。
+- `cargo build --release`: 最適化ビルドを実行します。
 
-## Coding Style & Naming Conventions
-- Use `rustfmt` before commits; keep default Rust 4-space indentation.
-- Naming follows Rust conventions: `snake_case` for functions/vars, `PascalCase` for types, `UPPER_SNAKE_CASE` for constants.
-- Public items should have `///` doc comments.
-- Prefer `Result<T, E>` for recoverable errors and `panic!` for unrecoverable cases.
+## コーディングスタイルと命名規則
+- コミット前に `rustfmt` を実行し、Rust 標準の 4 スペースインデントを維持してください。
+- 命名は Rust の慣例に従います。関数・変数は `snake_case`、型は `PascalCase`、定数は `UPPER_SNAKE_CASE` を使います。
+- public item には `///` のドキュメントコメントを付けてください。
+- 回復可能なエラーには `Result<T, E>` を優先し、回復不能なケースには `panic!` を使います。
 
-## Testing Guidelines
-- Tests use Rust’s built-in test framework; keep tests close to code in `#[cfg(test)]` modules.
-- Add tests for all public functions and parser edge cases (e.g., whitespace, comments, case-insensitivity).
-- No explicit coverage threshold is enforced.
+## テスト方針
+- テストには Rust 標準のテストフレームワークを使い、`#[cfg(test)]` モジュールでコードの近くに配置します。
+- すべての public 関数とパーサーのエッジケース（例: 空白、コメント、大文字小文字を区別しない構文）にテストを追加してください。
+- 明示的なカバレッジ閾値はありません。
 
-## Commit & Pull Request Guidelines
-- Commit messages follow Conventional Commits seen in history (e.g., `feat: ...`, `docs: ...`, `test: ...`, `chore: ...`).
-- Issue-based workflow: create a feature branch per issue, e.g., `feature/issue-123-short-desc`.
-- PRs should include a short summary, implementation checklist, test status, and linked issue (see `CLAUDE.md` for the template).
+## コミットとプルリクエストの方針
+- コミットメッセージは履歴にある Conventional Commits に従います（例: `feat: ...`、`docs: ...`、`test: ...`、`chore: ...`）。
+- issue ベースのワークフローを採用します。issue ごとに `feature/issue-123-short-desc` のようなフィーチャーブランチを作成してください。
+- PR には短い概要、実装チェックリスト、テスト状況、関連 issue を含めてください（テンプレートは `CLAUDE.md` を参照）。
 
-## Development Workflow Notes
-- This repo follows a TDD flow: write tests first, confirm failure, implement, then refactor.
-- Run `cargo fmt` and `cargo clippy` before opening a PR.
+## 開発ワークフローの注意点
+- このリポジトリは TDD フローに従います。先にテストを書き、失敗を確認してから実装し、その後リファクタリングします。
+- PR を作成する前に `cargo fmt` と `cargo clippy` を実行してください。
